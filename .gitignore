@@ -1,0 +1,18 @@
+# Dependencias de Python
+venv/
+__pycache__/
+*.pyc
+
+# Dependencias de Node (Frontend)
+node_modules/
+dist/
+build/
+
+# Variables de entorno y secretos (IMPORTANTE)
+.env
+.DS_Store
+
+# Secretos de Google
+client_secret.json
+app/auth/client_secret.json
+**/client_secret.json
