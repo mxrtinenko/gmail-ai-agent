@@ -16,7 +16,7 @@ import {
 } from 'react-icons/fi';
 import logo from './assets/logo.png';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
+const API = 'https://gmail-ai-agent-l7i0.onrender.com';
 
 /* =====================
      HELPERS
