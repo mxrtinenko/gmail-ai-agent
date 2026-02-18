@@ -12,9 +12,10 @@ import {
   FiX,
   FiRefreshCw,
   FiSearch,
+  FiMenu,
 } from 'react-icons/fi';
 
-const API = 'http://127.0.0.1:8001';
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
 /* =====================
      HELPERS
@@ -50,6 +51,9 @@ function App() {
   const [userEmail, setUserEmail] = useState('');
   
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
+  // Nuevo estado para controlar la sidebar en móvil
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const unreadCount = emails.filter((e) => e.unread).length;
 
@@ -261,32 +265,39 @@ function App() {
   ===================== */
   return (
     <div className="app">
-      {/* SIDEBAR */}
-      <aside className="sidebar">
+      
+      {/* Overlay para cerrar sidebar en móvil al hacer click fuera */}
+      <div 
+        className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      ></div>
+
+      {/* SIDEBAR con clase dinámica para mostrarse en móvil */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div>
           <div className="logo">
             <img src="/src/assets/logo.png" alt="Logo" />
           </div>
 
           <nav>
-            <button onClick={() => setCurrentLabel('INBOX')}>
+            <button onClick={() => { setCurrentLabel('INBOX'); setSidebarOpen(false); }}>
               <FiInbox /> Inbox
             </button>
-            <button onClick={() => setCurrentLabel('SENT')}>
-              <FiSend /> Sent
+            <button onClick={() => { setCurrentLabel('SENT'); setSidebarOpen(false); }}>
+              <FiSend /> Enviados
             </button>
-            <button onClick={() => setCurrentLabel('DRAFT')}>
-              <FiEdit /> Drafts
+            <button onClick={() => { setCurrentLabel('DRAFT'); setSidebarOpen(false); }}>
+              <FiEdit /> Borradores
             </button>
-            <button onClick={() => setCurrentLabel('TRASH')}>
+            <button onClick={() => { setCurrentLabel('TRASH'); setSidebarOpen(false); }}>
               <FiTrash2 /> Eliminados
             </button>
 
             <hr />
-            <h4>Labels</h4>
+            <h4>Etiquetas</h4>
 
             {labels.map((l) => (
-              <button key={l.id} onClick={() => setCurrentLabel(l.id)}>
+              <button key={l.id} onClick={() => { setCurrentLabel(l.id); setSidebarOpen(false); }}>
                 <FiTag /> {l.name}
               </button>
             ))}
@@ -310,7 +321,16 @@ function App() {
           <div className="list-card">
             {/* Header */}
             <div className="list-header">
-              <div className="list-title">
+              <div className="list-title" style={{ display: 'flex', alignItems: 'center' }}>
+                
+                {/* Botón menú hamburguesa (visible solo en móvil por CSS) */}
+                <button 
+                  className="menu-toggle" 
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                >
+                  <FiMenu />
+                </button>
+
                 <h3>{currentLabel}</h3>
                 {unreadCount > 0 && (
                   <span className="list-count unread">
@@ -374,6 +394,9 @@ function App() {
                         }
                       }}
                     >
+                      {/* Punto azul de no leído */}
+                      {email.unread && <div className="unread-dot"></div>}
+
                       <div className="email-content">
                         <div className="email-from">{email.from}</div>
                         {humanLabel && (

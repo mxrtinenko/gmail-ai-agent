@@ -59,7 +59,8 @@ body, html {
    SIDEBAR
 ===================== */
 .sidebar {
-  width: 260px;
+  /* AJUSTE: Reducido de 260px a 250px para que se vea más compacto */
+  width: 250px;
   flex-shrink: 0;
   background: #ffffff;
   border-right: 1px solid var(--border);
@@ -120,13 +121,19 @@ body, html {
 .logo {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 0 0 24px 12px;
+  
+  /* AJUSTE: Centramos el logo horizontalmente */
+  justify-content: center; 
+  
+  /* AJUSTE: Quitamos el padding izquierdo que lo empujaba */
+  padding: 0 0 24px 0; 
+  
   margin-bottom: 10px;
 }
 
 .logo img {
-  width: 130px;
+  /* AJUSTE: Un pelín más grande para que presida bien (de 130 a 140) */
+  width: 140px;
   height: auto;
   object-fit: contain;
   display: block;
@@ -148,6 +155,7 @@ body, html {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center; /* Centramos también el email para que cuadre con el logo */
 }
 
 .logout-button {
@@ -295,7 +303,8 @@ body, html {
 .email-item {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start; 
+  
   padding: 14px 20px;
   padding-right: 60px; /* Espacio para botón delete */
   border-bottom: 1px solid #f1f5f9;
@@ -349,13 +358,17 @@ body, html {
   font-weight: 700;
 }
 
+/* ESTILOS PUNTO AZUL */
 .unread-dot {
-  background: var(--primary);
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
+  background-color: #2563eb; /* Azul brillante */
   border-radius: 50%;
-  display: inline-block;
+  
+  /* Alineación */
   flex-shrink: 0;
+  margin-right: 14px; 
+  margin-top: 6px;    
 }
 
 /* Botón Delete (Posición Absoluta) */
@@ -540,6 +553,7 @@ button {
   font-size: 14px;
   margin-bottom: 12px;
   background: white;
+  color: #334155; 
   resize: vertical;
   min-height: 100px;
 }
@@ -725,5 +739,66 @@ button {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* =====================
+   RESPONSIVE (MÓVIL)
+===================== */
+
+/* Por defecto el botón de menú está oculto en PC */
+.menu-toggle {
+  display: none; 
+}
+
+/* Cuando la pantalla es pequeña (Móvil/Tablet) */
+@media (max-width: 768px) {
+  
+  /* Mostrar botón de menú */
+  .menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    margin-right: 10px;
+    color: #334155;
+    padding: 0;
+  }
+
+  /* La Sidebar se vuelve flotante y oculta */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 1000;
+    transform: translateX(-100%); /* Escondida a la izquierda */
+    transition: transform 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  }
+
+  /* Clase para mostrarla cuando pulsamos el botón */
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Fondo oscuro cuando abrimos el menú */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    display: none;
+  }
+  .sidebar-overlay.active {
+    display: block;
+  }
+  
+  /* Ajustar el padding de la lista en móvil */
+  .list-header {
+    padding: 10px;
   }
 }

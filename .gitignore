@@ -16,3 +16,5 @@ build/
 client_secret.json
 app/auth/client_secret.json
 **/client_secret.json
+
+app/auth/token.json
