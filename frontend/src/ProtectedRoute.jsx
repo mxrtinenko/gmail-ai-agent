@@ -9,7 +9,6 @@ function ProtectedRoute({ children }) {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    // AQUI ESTABA EL ERROR: cambiamos localhost por la variable API
     fetch(`${API}/auth/status`, {
       credentials: "include",
     })
@@ -24,7 +23,15 @@ function ProtectedRoute({ children }) {
       });
   }, []);
 
-  if (loading) return <p>Cargando...</p>;
+  if (loading) {
+    // AQUI ESTÁ EL CAMBIO: Una pantalla de carga bonita
+    return (
+      <div className="loading-screen">
+        <div className="spinner"></div>
+        <p>Conectando con tu asistente...</p>
+      </div>
+    );
+  }
 
   if (!loggedIn) return <Navigate to="/login" replace />;
 
