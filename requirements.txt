@@ -1,17 +1,44 @@
-# --- Framework Web ---
+annotated-doc
+annotated-types
+anyio
+certifi
+cffi
+charset-normalizer
+click
+colorama
+cryptography
 fastapi
-uvicorn
-python-dotenv
-pydantic
-
-# --- Google (Gmail, Calendar, Auth) ---
+google-ai-generativelanguage
+google-api-core
 google-api-python-client
 google-auth
-google-auth-oauthlib
 google-auth-httplib2
-
-# --- Inteligencia Artificial ---
+google-auth-oauthlib
 google-generativeai
-
-# --- Utilidades ---
+googleapis-common-protos
+grpcio
+grpcio-status
+h11
+httplib2
+idna
+oauthlib
+proto-plus
+protobuf
+pyasn1
+pyasn1_modules
+pycparser
+pydantic
+pydantic_core
+pyparsing
+python-dotenv
+pytz
 requests
+requests-oauthlib
+rsa
+starlette
+tqdm
+typing-inspection
+typing_extensions
+uritemplate
+urllib3
+uvicorn
