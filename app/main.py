@@ -140,7 +140,8 @@ def logout():
             os.remove(TOKEN_PATH)
         except:
             pass
-    return RedirectResponse("/login")
+    # CAMBIO: Devolvemos un JSON simple en lugar de una redirección
+    return {"status": "logged_out"}
 
 
 @app.get("/oauth2callback")
