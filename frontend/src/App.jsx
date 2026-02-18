@@ -14,6 +14,7 @@ import {
   FiSearch,
   FiMenu,
 } from 'react-icons/fi';
+import logo from './assets/logo.png';
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
@@ -276,7 +277,7 @@ function App() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div>
           <div className="logo">
-            <img src="/src/assets/logo.png" alt="Logo" />
+            <img src={logo} alt="Logo" />
           </div>
 
           <nav>

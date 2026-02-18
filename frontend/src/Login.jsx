@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+// IMPORTANTE: Importamos las imágenes para que Vite las procese bien en producción
+import logoImg from './assets/logo.png';
+import googleIcon from './assets/google.png';
+
+// Detectamos si estamos en Vercel o en Local
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 function Login() {
   const navigate = useNavigate();
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:8001/auth/status", {
+    // Usamos la variable API en lugar de localhost
+    fetch(`${API}/auth/status`, {
       credentials: "include",
     })
       .then((res) => res.json())
@@ -20,7 +27,8 @@ function Login() {
 
   function loginWithGoogle() {
     setConnecting(true);
-    window.location.href = "http://localhost:8001/login";
+    // Redirigimos al backend correcto (Render en prod, Localhost en dev)
+    window.location.href = `${API}/login`;
   }
 
   return (
@@ -29,7 +37,7 @@ function Login() {
         {/* Logo principal */}
         <div className="login-header">
           <img
-            src="/src/assets/logo.png"
+            src={logoImg} // Usamos la variable importada
             alt="Gmail AI Agent logo"
             className="login-logo"
           />
@@ -48,7 +56,7 @@ function Login() {
           {!connecting ? (
             <>
               <img
-                src="/src/assets/google.png"
+                src={googleIcon} // Usamos la variable importada
                 alt="Google logo"
                 className="google-icon"
               />
