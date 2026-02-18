@@ -10,6 +10,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # =========================
+# CONFIGURACIÓN URLS (LOCAL vs PROD)
+# =========================
+# Definimos dónde está el frontend. En local es localhost, en prod es Vercel.
+# Esto lee la variable que pusimos en Render. Si no existe, usa localhost.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+# =========================
 # AUTH / GOOGLE
 # =========================
 from app.auth.google_auth import (
@@ -55,7 +62,10 @@ app = FastAPI(title="Gmail AI Agent")
 
 # Forzar login en cada arranque 
 if os.path.exists(TOKEN_PATH):
-    os.remove(TOKEN_PATH)
+    try:
+        os.remove(TOKEN_PATH)
+    except:
+        pass
 
 # =========================
 # CORS (React)
@@ -67,6 +77,8 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:8001",
         "http://127.0.0.1:8001",
+        FRONTEND_URL,              # Permitimos la URL de Vercel
+        FRONTEND_URL.rstrip("/")   # Por si acaso (sin barra al final)
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -105,33 +117,36 @@ class LabelRequest(BaseModel):
 # =========================
 @app.get("/")
 def root():
-    return RedirectResponse("http://localhost:5173")
+    return RedirectResponse(FRONTEND_URL)
 
 
 @app.get("/login")
 def login():
     if is_logged_in():
-        return RedirectResponse("http://localhost:5173")
+        return RedirectResponse(FRONTEND_URL)
 
     try:
         get_credentials()
     except OAuthRedirect as e:
         return RedirectResponse(e.url)
 
-    return RedirectResponse("http://localhost:5173")
+    return RedirectResponse(FRONTEND_URL)
 
 
 @app.get("/logout")
 def logout():
     if os.path.exists(TOKEN_PATH):
-        os.remove(TOKEN_PATH)
+        try:
+            os.remove(TOKEN_PATH)
+        except:
+            pass
     return RedirectResponse("/login")
 
 
 @app.get("/oauth2callback")
 def oauth2callback(request: Request):
     exchange_code_for_token(str(request.url))
-    return RedirectResponse("http://localhost:5173")
+    return RedirectResponse(FRONTEND_URL)
 
 
 # =========================
