@@ -1,5 +1,5 @@
 import os
-import pickle  # <--- IMPORT NECESARIO PARA GUARDAR MEMORIA
+import pickle
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -15,19 +15,12 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar",
 ]
 
-# === CONFIGURACIÓN INTELIGENTE (LOCAL VS NUBE) ===
-
-# 1. Archivo de Secretos:
+# === CONFIGURACIÓN ===
 CLIENT_SECRETS_FILE = os.environ.get("GOOGLE_CLIENT_SECRETS_FILE", "app/auth/client_secret.json")
-
-# 2. Token de Sesión:
 TOKEN_PATH = "app/auth/token.json"
+# Archivo temporal para guardar solo el CÓDIGO VERIFICADOR
+FLOW_STORAGE_PATH = "app/auth/flow_storage.pickle"
 
-# 3. Archivo Temporal de Flujo (EL ARREGLO):
-# Aquí guardaremos el "estado" intermedio del login
-FLOW_PICKLE_PATH = "app/auth/flow_storage.pickle"
-
-# 4. URL de Redirección (Callback):
 RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL') 
 if RENDER_EXTERNAL_URL:
     REDIRECT_URI = f"{RENDER_EXTERNAL_URL}/oauth2callback"
@@ -35,7 +28,6 @@ else:
     REDIRECT_URI = "http://localhost:8001/oauth2callback"
 
 # =================================================
-
 
 class OAuthRedirect(Exception):
     def __init__(self, url: str):
@@ -45,7 +37,6 @@ class OAuthRedirect(Exception):
 def is_logged_in():
     if not os.path.exists(TOKEN_PATH):
         return False
-
     try:
         creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
         return creds.valid or (creds.expired and creds.refresh_token)
@@ -71,12 +62,11 @@ def get_credentials():
     if creds.valid:
         return creds
 
-    # Si hay token pero NO es válido → forzar login
     raise OAuthRedirect(_build_auth_url())
 
 
 def _build_auth_url():
-    """Genera la URL y GUARDA el estado en un archivo pickle."""
+    """Genera la URL y guarda SOLO el code_verifier en un archivo."""
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
         scopes=SCOPES,
@@ -89,58 +79,66 @@ def _build_auth_url():
         include_granted_scopes="true",
     )
     
-    # --- ARREGLO INICIO ---
-    # Guardamos el objeto 'flow' entero (que tiene el code_verifier dentro)
+    # --- ARREGLO FINAL ---
+    # En lugar de guardar 'flow', guardamos un diccionario simple
+    # con los datos necesarios para reconstruirlo.
+    save_data = {
+        'code_verifier': flow.code_verifier,
+        'state': flow.state
+    }
+    
     try:
-        os.makedirs(os.path.dirname(FLOW_PICKLE_PATH), exist_ok=True)
-        with open(FLOW_PICKLE_PATH, 'wb') as f:
-            pickle.dump(flow, f)
+        os.makedirs(os.path.dirname(FLOW_STORAGE_PATH), exist_ok=True)
+        with open(FLOW_STORAGE_PATH, 'wb') as f:
+            pickle.dump(save_data, f)
     except Exception as e:
-        print(f"Error guardando flow pickle: {e}")
-    # --- ARREGLO FIN ---
+        print(f"Error guardando datos temporales: {e}")
+    # ---------------------
 
     return auth_url
 
 
 def exchange_code_for_token(callback_url: str):
-    """Recupera el estado guardado y canjea el código."""
+    """Reconstruye el Flow usando los datos guardados y canjea el código."""
     
-    flow = None
+    save_data = None
     
-    # --- ARREGLO INICIO ---
-    # Intentamos recuperar el flow guardado (que tiene el secreto)
-    if os.path.exists(FLOW_PICKLE_PATH):
+    # 1. Recuperamos el verificador del disco
+    if os.path.exists(FLOW_STORAGE_PATH):
         try:
-            with open(FLOW_PICKLE_PATH, 'rb') as f:
-                flow = pickle.load(f)
+            with open(FLOW_STORAGE_PATH, 'rb') as f:
+                save_data = pickle.load(f)
         except Exception as e:
-            print(f"Error cargando flow pickle: {e}")
-    # --- ARREGLO FIN ---
+            print(f"Error cargando datos temporales: {e}")
 
-    # Si por lo que sea falló la carga, creamos uno nuevo (aunque esto fallará por el verifier)
-    if not flow:
-        print("⚠️ Advertencia: No se encontró pickle, creando flujo nuevo (puede fallar 'invalid_grant')")
-        flow = Flow.from_client_secrets_file(
-            CLIENT_SECRETS_FILE,
-            scopes=SCOPES,
-            redirect_uri=REDIRECT_URI,
-        )
+    # 2. Creamos un Flow nuevo (limpio)
+    flow = Flow.from_client_secrets_file(
+        CLIENT_SECRETS_FILE,
+        scopes=SCOPES,
+        redirect_uri=REDIRECT_URI,
+    )
 
-    # Canjeamos el token
+    # 3. Le inyectamos manualmente la memoria recuperada
+    if save_data and 'code_verifier' in save_data:
+        flow.code_verifier = save_data['code_verifier']
+        flow.state = save_data.get('state')
+    else:
+        print("⚠️ ALERTA: No se encontró code_verifier guardado. El login fallará.")
+
+    # 4. Canjeamos
     flow.fetch_token(authorization_response=callback_url)
 
     creds = flow.credentials
-
-    # Aseguramos que el directorio exista antes de guardar
     os.makedirs(os.path.dirname(TOKEN_PATH), exist_ok=True)
-    
     with open(TOKEN_PATH, "w") as token:
         token.write(creds.to_json())
         
-    # Limpieza: Borramos el archivo temporal
-    if os.path.exists(FLOW_PICKLE_PATH):
-        os.remove(FLOW_PICKLE_PATH)
-
+    # Limpieza
+    if os.path.exists(FLOW_STORAGE_PATH):
+        try:
+            os.remove(FLOW_STORAGE_PATH)
+        except:
+            pass
 
 def get_gmail_service():
     creds = get_credentials()
