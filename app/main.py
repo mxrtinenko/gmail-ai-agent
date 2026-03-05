@@ -6,6 +6,7 @@ from datetime import datetime
 import os
 from app.auth.google_auth import get_credentials, OAuthRedirect
 from dotenv import load_dotenv
+import base64
 
 load_dotenv()
 
@@ -194,6 +195,50 @@ def read_emails(label: str = "INBOX"):
         })
 
     return emails
+
+@app.get("/emails/{message_id}")
+def get_email_details(message_id: str):
+    """
+    Obtiene el cuerpo completo y comprueba si hay respuestas en el hilo.
+    """
+    service = get_gmail_service()
+    
+    # 1. Obtener mensaje original
+    msg = get_message(service, message_id)
+    body = get_message_body(msg)
+    meta = extract_email_metadata(msg)
+    
+    # 2. Lógica de Thread (Buscar respuestas)
+    last_reply = None
+    thread_id = msg.get("threadId")
+    
+    if thread_id:
+        try:
+            thread = service.users().threads().get(userId="me", id=thread_id).execute()
+            messages = thread.get("messages", [])
+            
+            # Buscar mensajes posteriores al actual que sean mios (SENT)
+            for m in reversed(messages):
+                if m["id"] == message_id:
+                    break # Llegamos al mensaje actual, paramos
+                
+                # Si encontramos un mensaje posterior y tiene SENT, es respuesta mia
+                if "SENT" in m.get("labelIds", []):
+                    last_reply = m.get("snippet", "Respuesta enviada.")
+                    break
+        except Exception as e:
+            print(f"Error checking thread: {e}")
+
+    return {
+        "id": msg["id"],
+        "threadId": thread_id,
+        "labelIds": msg.get("labelIds", []),
+        "snippet": msg.get("snippet", ""),
+        "subject": meta["subject"],
+        "from": meta["from"],
+        "body": body,
+        "last_reply": last_reply # <--- Esto es lo que busca el frontend
+    }
 
 
 

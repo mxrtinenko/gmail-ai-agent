@@ -16,10 +16,11 @@ import {
 } from 'react-icons/fi';
 import logo from './assets/logo.png';
 
-const API = 'https://gmail-ai-agent-l7i0.onrender.com';
+// Detectamos entorno (importante para que funcione en local si decides bajarlo)
+const API = import.meta.env.VITE_API_URL || 'https://gmail-ai-agent-l7i0.onrender.com';
 
 /* =====================
-     HELPERS
+      HELPERS
 ===================== */
 function getHumanLabel(emailLabels, allLabels) {
   if (!emailLabels || !allLabels) return null;
@@ -29,7 +30,7 @@ function getHumanLabel(emailLabels, allLabels) {
 
 function App() {
   /* =====================
-       STATE
+        STATE
   ===================== */
   const [labels, setLabels] = useState([]);
   const [emails, setEmails] = useState([]);
@@ -52,11 +53,29 @@ function App() {
   const [userEmail, setUserEmail] = useState('');
   
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  
-  // Nuevo estado para controlar la sidebar en móvil
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const unreadCount = emails.filter((e) => e.unread).length;
+
+  /* =====================
+       AUTO FETCH DETAILS
+  ===================== */
+  // Cuando seleccionamos un email, pedimos al backend los detalles (Thread check)
+  useEffect(() => {
+    if (!selectedEmail || !selectedEmail.id) return;
+
+    // Solo pedimos detalle si aún no tenemos la info de last_reply verificada
+    // (O podemos pedirla siempre para estar seguros)
+    fetch(`${API}/emails/${selectedEmail.id}`)
+      .then(res => res.json())
+      .then(data => {
+         // Actualizamos el selectedEmail con la info fresca (incluido last_reply)
+         setSelectedEmail(prev => ({...prev, ...data}));
+      })
+      .catch(err => console.error("Error fetching details", err));
+
+  }, [selectedEmail?.id]);
+
 
   /* =====================
        AUTO ANALYZE ON OPEN
@@ -79,10 +98,10 @@ function App() {
       })
       .catch(() => showToast('Error analizando el correo', 'error'))
       .finally(() => setLoadingAI(false));
-  }, [viewerOpen, selectedEmail]);
+  }, [viewerOpen, selectedEmail?.id]); // Usamos ID para evitar bucles
 
   /* =====================
-       LOAD LABELS
+        LOAD LABELS
   ===================== */
   useEffect(() => {
     fetch(`${API}/gmail/labels`)
@@ -92,7 +111,7 @@ function App() {
   }, []);
 
   /* =====================
-       LOAD EMAILS (CON AUTO-REFRESH)
+        LOAD EMAILS
   ===================== */
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +153,7 @@ function App() {
   }, [currentLabel]);
 
   /* =====================
-       USER
+        USER
   ===================== */
   useEffect(() => {
     fetch(`${API}/auth/user`, { credentials: 'include' })
@@ -144,7 +163,7 @@ function App() {
   }, []);
 
   /* =====================
-       ACTIONS
+        ACTIONS
   ===================== */
   function formatMeetingDate(isoString, duration) {
     try {
@@ -208,7 +227,6 @@ function App() {
       method: 'POST',
     }).then(() => {
       showToast(`Etiqueta "${label}" aplicada`);
-      // No recargamos etiquetas aquí para no cortar el flujo visual
     });
   }
 
@@ -246,6 +264,11 @@ function App() {
       .then(() => {
         showToast('Respuesta enviada');
         setReplyText('');
+        // Actualizamos localmente para que aparezca la cajita verde sin recargar
+        setSelectedEmail(prev => ({
+            ...prev,
+            last_reply: replyText
+        }));
       })
       .finally(() => setSendingReply(false));
   }
@@ -262,18 +285,16 @@ function App() {
   }
 
   /* =====================
-       RENDER
+        RENDER
   ===================== */
   return (
     <div className="app">
       
-      {/* Overlay para cerrar sidebar en móvil al hacer click fuera */}
       <div 
         className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
         onClick={() => setSidebarOpen(false)}
       ></div>
 
-      {/* SIDEBAR con clase dinámica para mostrarse en móvil */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div>
           <div className="logo">
@@ -323,8 +344,6 @@ function App() {
             {/* Header */}
             <div className="list-header">
               <div className="list-title" style={{ display: 'flex', alignItems: 'center' }}>
-                
-                {/* Botón menú hamburguesa (visible solo en móvil por CSS) */}
                 <button 
                   className="menu-toggle" 
                   onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -383,6 +402,7 @@ function App() {
                       key={email.id}
                       className={`email-item ${email.unread ? 'unread' : ''} ${selectedEmail?.id === email.id ? 'active' : ''}`}
                       onClick={() => {
+                        // Al hacer click, marcamos para abrir. El useEffect se encargará de pedir detalles
                         setSelectedEmail(email);
                         setViewerOpen(true);
                         setReplyText('');
@@ -395,7 +415,6 @@ function App() {
                         }
                       }}
                     >
-                      {/* Punto azul de no leído */}
                       {email.unread && <div className="unread-dot"></div>}
 
                       <div className="email-content">
@@ -418,17 +437,7 @@ function App() {
                             .then(() => setEmails((prev) => prev.filter((e) => e.id !== email.id)));
                         }}
                       >
-                         <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            width="18" 
-                            height="18" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             <line x1="10" y1="11" x2="10" y2="17"></line>
@@ -452,6 +461,27 @@ function App() {
             </button>
 
             <h3>{selectedEmail.subject}</h3>
+
+            {/* AQUI ESTA LA MAGIA: MOSTRAR SI YA RESPONDI */}
+            {selectedEmail.last_reply && (
+              <div className="previous-reply" style={{
+                backgroundColor: '#dcfce7', 
+                border: '1px solid #86efac',
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                color: '#166534',
+                fontSize: '0.9rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', fontWeight: 'bold' }}>
+                  <FiCheckCircle /> 
+                  <span>Ya respondiste a este correo:</span>
+                </div>
+                <p style={{ margin: 0, fontStyle: 'italic', opacity: 0.9 }}>
+                  "{selectedEmail.last_reply}"
+                </p>
+              </div>
+            )}
 
             <div className="email-body">{selectedEmail.body}</div>
 
