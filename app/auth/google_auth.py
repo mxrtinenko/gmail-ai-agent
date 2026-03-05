@@ -18,7 +18,6 @@ SCOPES = [
 # === CONFIGURACIÓN ===
 CLIENT_SECRETS_FILE = os.environ.get("GOOGLE_CLIENT_SECRETS_FILE", "app/auth/client_secret.json")
 TOKEN_PATH = "app/auth/token.json"
-# Archivo temporal para guardar solo el CÓDIGO VERIFICADOR
 FLOW_STORAGE_PATH = "app/auth/flow_storage.pickle"
 
 RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL') 
@@ -66,25 +65,24 @@ def get_credentials():
 
 
 def _build_auth_url():
-    """Genera la URL y guarda SOLO el code_verifier en un archivo."""
+    """Genera la URL y guarda state y code_verifier."""
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI,
     )
 
-    auth_url, _ = flow.authorization_url(
+    # CORRECCIÓN 1: Capturamos 'state' aquí (antes era _)
+    auth_url, state = flow.authorization_url(
         access_type="offline",
         prompt="consent",
         include_granted_scopes="true",
     )
     
-    # --- ARREGLO FINAL ---
-    # En lugar de guardar 'flow', guardamos un diccionario simple
-    # con los datos necesarios para reconstruirlo.
+    # Guardamos los datos necesarios para reconstruir el flow luego
     save_data = {
         'code_verifier': flow.code_verifier,
-        'state': flow.state
+        'state': state  # Usamos la variable capturada arriba
     }
     
     try:
@@ -93,17 +91,16 @@ def _build_auth_url():
             pickle.dump(save_data, f)
     except Exception as e:
         print(f"Error guardando datos temporales: {e}")
-    # ---------------------
 
     return auth_url
 
 
 def exchange_code_for_token(callback_url: str):
-    """Reconstruye el Flow usando los datos guardados y canjea el código."""
+    """Reconstruye el Flow y canjea el código."""
     
-    save_data = None
+    save_data = {}
     
-    # 1. Recuperamos el verificador del disco
+    # 1. Recuperamos datos
     if os.path.exists(FLOW_STORAGE_PATH):
         try:
             with open(FLOW_STORAGE_PATH, 'rb') as f:
@@ -111,19 +108,19 @@ def exchange_code_for_token(callback_url: str):
         except Exception as e:
             print(f"Error cargando datos temporales: {e}")
 
-    # 2. Creamos un Flow nuevo (limpio)
+    # 2. CORRECCIÓN 2: Pasamos el 'state' al constructor
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI,
+        state=save_data.get('state') # <--- IMPORTANTE
     )
 
-    # 3. Le inyectamos manualmente la memoria recuperada
-    if save_data and 'code_verifier' in save_data:
+    # 3. Inyectamos el code_verifier
+    if 'code_verifier' in save_data:
         flow.code_verifier = save_data['code_verifier']
-        flow.state = save_data.get('state')
     else:
-        print("⚠️ ALERTA: No se encontró code_verifier guardado. El login fallará.")
+        print("⚠️ ALERTA: Login sin code_verifier (puede fallar).")
 
     # 4. Canjeamos
     flow.fetch_token(authorization_response=callback_url)
