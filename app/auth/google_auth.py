@@ -1,4 +1,5 @@
 import os
+import pickle  # <--- IMPORT NECESARIO PARA GUARDAR MEMORIA
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -17,16 +18,16 @@ SCOPES = [
 # === CONFIGURACIÓN INTELIGENTE (LOCAL VS NUBE) ===
 
 # 1. Archivo de Secretos:
-# En Render lo buscamos en /etc/secrets/ (definido por variable de entorno)
-# En Local lo buscamos en app/auth/client_secret.json
 CLIENT_SECRETS_FILE = os.environ.get("GOOGLE_CLIENT_SECRETS_FILE", "app/auth/client_secret.json")
 
 # 2. Token de Sesión:
-# Lo guardamos siempre en app/auth/token.json (Render permite escritura temporal)
 TOKEN_PATH = "app/auth/token.json"
 
-# 3. URL de Redirección (Callback):
-# Si estamos en Render, usamos su URL externa. Si no, localhost.
+# 3. Archivo Temporal de Flujo (EL ARREGLO):
+# Aquí guardaremos el "estado" intermedio del login
+FLOW_PICKLE_PATH = "app/auth/flow_storage.pickle"
+
+# 4. URL de Redirección (Callback):
 RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL') 
 if RENDER_EXTERNAL_URL:
     REDIRECT_URI = f"{RENDER_EXTERNAL_URL}/oauth2callback"
@@ -73,7 +74,9 @@ def get_credentials():
     # Si hay token pero NO es válido → forzar login
     raise OAuthRedirect(_build_auth_url())
 
+
 def _build_auth_url():
+    """Genera la URL y GUARDA el estado en un archivo pickle."""
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
         scopes=SCOPES,
@@ -85,16 +88,45 @@ def _build_auth_url():
         prompt="consent",
         include_granted_scopes="true",
     )
+    
+    # --- ARREGLO INICIO ---
+    # Guardamos el objeto 'flow' entero (que tiene el code_verifier dentro)
+    try:
+        os.makedirs(os.path.dirname(FLOW_PICKLE_PATH), exist_ok=True)
+        with open(FLOW_PICKLE_PATH, 'wb') as f:
+            pickle.dump(flow, f)
+    except Exception as e:
+        print(f"Error guardando flow pickle: {e}")
+    # --- ARREGLO FIN ---
+
     return auth_url
 
 
 def exchange_code_for_token(callback_url: str):
-    flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE,
-        scopes=SCOPES,
-        redirect_uri=REDIRECT_URI,
-    )
+    """Recupera el estado guardado y canjea el código."""
+    
+    flow = None
+    
+    # --- ARREGLO INICIO ---
+    # Intentamos recuperar el flow guardado (que tiene el secreto)
+    if os.path.exists(FLOW_PICKLE_PATH):
+        try:
+            with open(FLOW_PICKLE_PATH, 'rb') as f:
+                flow = pickle.load(f)
+        except Exception as e:
+            print(f"Error cargando flow pickle: {e}")
+    # --- ARREGLO FIN ---
 
+    # Si por lo que sea falló la carga, creamos uno nuevo (aunque esto fallará por el verifier)
+    if not flow:
+        print("⚠️ Advertencia: No se encontró pickle, creando flujo nuevo (puede fallar 'invalid_grant')")
+        flow = Flow.from_client_secrets_file(
+            CLIENT_SECRETS_FILE,
+            scopes=SCOPES,
+            redirect_uri=REDIRECT_URI,
+        )
+
+    # Canjeamos el token
     flow.fetch_token(authorization_response=callback_url)
 
     creds = flow.credentials
@@ -104,6 +136,10 @@ def exchange_code_for_token(callback_url: str):
     
     with open(TOKEN_PATH, "w") as token:
         token.write(creds.to_json())
+        
+    # Limpieza: Borramos el archivo temporal
+    if os.path.exists(FLOW_PICKLE_PATH):
+        os.remove(FLOW_PICKLE_PATH)
 
 
 def get_gmail_service():
