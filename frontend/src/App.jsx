@@ -60,21 +60,21 @@ function App() {
   /* =====================
        AUTO FETCH DETAILS
   ===================== */
-  // Cuando seleccionamos un email, pedimos al backend los detalles (Thread check)
+  // Cuando abrimos el visor, pedimos al backend los detalles frescos
   useEffect(() => {
-    if (!selectedEmail || !selectedEmail.id) return;
+    // Si el visor está cerrado, no hacemos nada
+    if (!viewerOpen || !selectedEmail || !selectedEmail.id) return;
 
-    // Solo pedimos detalle si aún no tenemos la info de last_reply verificada
-    // (O podemos pedirla siempre para estar seguros)
-    fetch(`${API}/emails/${selectedEmail.id}`)
+    // Truco: Añadimos ?t=Date.now() para que el navegador NO use la caché
+    fetch(`${API}/emails/${selectedEmail.id}?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
-         // Actualizamos el selectedEmail con la info fresca (incluido last_reply)
+         // Mezclamos la info actual con la nueva que viene del servidor (que trae last_reply)
          setSelectedEmail(prev => ({...prev, ...data}));
       })
       .catch(err => console.error("Error fetching details", err));
 
-  }, [selectedEmail?.id]);
+  }, [selectedEmail?.id, viewerOpen]);
 
 
   /* =====================
@@ -462,7 +462,7 @@ function App() {
 
             <h3>{selectedEmail.subject}</h3>
 
-            {/* AQUI ESTA LA MAGIA: MOSTRAR SI YA RESPONDI */}
+            {/* MOSTRAR SI YA RESPONDI */}
             {selectedEmail.last_reply && (
               <div className="previous-reply" style={{
                 backgroundColor: '#dcfce7', 
