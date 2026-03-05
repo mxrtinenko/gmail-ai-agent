@@ -28,7 +28,6 @@ pyasn1
 pyasn1_modules
 pycparser
 pydantic
-pydantic_core
 pyparsing
 python-dotenv
 pytz
