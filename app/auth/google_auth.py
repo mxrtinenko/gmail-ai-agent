@@ -72,17 +72,19 @@ def _build_auth_url():
         redirect_uri=REDIRECT_URI,
     )
 
-    # CORRECCIÓN 1: Capturamos 'state' aquí (antes era _)
+    # === CORRECCIÓN IMPORTANTE ===
+    # Capturamos la variable 'state' que nos devuelve la función.
+    # NO usamos flow.state (eso da error).
     auth_url, state = flow.authorization_url(
         access_type="offline",
         prompt="consent",
         include_granted_scopes="true",
     )
     
-    # Guardamos los datos necesarios para reconstruir el flow luego
+    # Guardamos el diccionario simple (Pickle Friendly)
     save_data = {
         'code_verifier': flow.code_verifier,
-        'state': state  # Usamos la variable capturada arriba
+        'state': state  # <--- Usamos la variable capturada arriba
     }
     
     try:
@@ -108,12 +110,12 @@ def exchange_code_for_token(callback_url: str):
         except Exception as e:
             print(f"Error cargando datos temporales: {e}")
 
-    # 2. CORRECCIÓN 2: Pasamos el 'state' al constructor
+    # 2. Pasamos el 'state' al constructor
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI,
-        state=save_data.get('state') # <--- IMPORTANTE
+        state=save_data.get('state') 
     )
 
     # 3. Inyectamos el code_verifier
