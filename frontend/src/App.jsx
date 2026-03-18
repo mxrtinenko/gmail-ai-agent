@@ -95,13 +95,19 @@ function App() {
           setReplyText(data.suggested_reply);
         }
 
-        // NUEVO: Si la IA dice que es importante, actualizamos el correo en la lista
+        // Si la IA dice que es importante, actualizamos el correo en la lista
         if (data.is_important) {
+          // 1. Reflejo visual inmediato
           setEmails((prevEmails) =>
             prevEmails.map((e) =>
               e.id === selectedEmail.id ? { ...e, is_important: true } : e,
             ),
           );
+          
+          // 2. Persistencia en Gmail (Largo Plazo)
+          fetch(`${API}/emails/${selectedEmail.id}/add-label?label=IMPORTANTE`, {
+            method: "POST",
+          }).catch(err => console.log("Fallo menor al guardar etiqueta en Gmail", err));
         }
       })
       .catch(() => showToast("Error analizando el correo", "error"))
@@ -432,6 +438,8 @@ function App() {
                 })
                 .map((email) => {
                   const humanLabel = getHumanLabel(email.labels, labels);
+                  // Evaluamos si es importante por el análisis reciente o si ya trae la etiqueta de Gmail
+                  const isImportant = email.is_important || humanLabel === 'IMPORTANTE';
 
                   return (
                     <div
@@ -459,7 +467,9 @@ function App() {
 
                       <div className="email-content">
                         <div className="email-from">{email.from}</div>
-                        {humanLabel && (
+                        
+                        {/* Ocultamos la etiqueta gris genérica si es IMPORTANTE, para no duplicar */}
+                        {humanLabel && humanLabel !== 'IMPORTANTE' && (
                           <span
                             className="email-label-chip"
                             style={{
@@ -476,12 +486,13 @@ function App() {
                             {humanLabel}
                           </span>
                         )}
+                        
                         <div className="email-subject">
-                          {email.is_important && (
+                          {isImportant && (
                             <span
                               style={{
                                 background: "#fee2e2",
-                                color: "#991b1b",
+                                color: "#bb3939bd",
                                 fontSize: "10px",
                                 padding: "2px 6px",
                                 borderRadius: "4px",
@@ -495,7 +506,6 @@ function App() {
                           )}
                           {email.subject}
                         </div>
-                        <div className="email-subject">{email.subject}</div>
                         <div className="email-preview">{email.snippet}</div>
                       </div>
 
