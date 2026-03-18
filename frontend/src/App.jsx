@@ -501,7 +501,7 @@ function App() {
                                 display: "inline-block",
                               }}
                             >
-                              🔥 IMPORTANTE
+                              IMPORTANTE
                             </span>
                           )}
                           {email.subject}
