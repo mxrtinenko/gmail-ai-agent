@@ -51,7 +51,8 @@ REGLAS DE INTERPRETACIÓN DE FECHAS:
 Instrucciones:
 1. Analiza el correo recibido.
 2. Extrae la intención y datos clave.
-3. GENERA SIEMPRE UNA RESPUESTA SUGERIDA (suggested_reply).
+3. Evalúa si el correo es IMPORTANTE (ej. urgencias, facturas impagadas, problemas técnicos, acciones requeridas a corto plazo o clientes críticos).
+4. GENERA SIEMPRE UNA RESPUESTA SUGERIDA (suggested_reply).
    - Si el correo es una conversación: Redacta una respuesta natural y profesional.
    - Si es una newsletter o notificación: Redacta un simple "Recibido, gracias" o "Leído".
    - NO dejes el campo suggested_reply vacío o null.
@@ -78,7 +79,8 @@ El JSON debe tener EXACTAMENTE esta estructura:
   "proposed_datetime": "YYYY-MM-DDTHH:MM" o null,
   "duration_minutes": number o null,
   "suggested_reply": string,
-  "suggested_label": string o null
+  "suggested_label": string o null,
+  "is_important": boolean
 }}
 
 REGLAS PARA suggested_label:
@@ -120,10 +122,8 @@ Correo:
     # PARSE JSON 
     # =========================
     try:
-     
         data = json.loads(text)
     except Exception:
-        
         match = re.search(r"\{[\s\S]*\}", text)
         if not match:
             return {
@@ -133,6 +133,7 @@ Correo:
                 "duration_minutes": None,
                 "suggested_reply": "Gracias por tu correo. Lo reviso y te confirmo en breve.",
                 "suggested_label": "trabajo",
+                "is_important": False, # <--- AÑADIR ESTO
                 "raw_output": text,
             }
         try:
@@ -141,6 +142,7 @@ Correo:
              return {
                 "summary": "Error procesando JSON",
                 "meeting_detected": False,
+                "is_important": False, # <--- AÑADIR ESTO
                 "error": "Invalid JSON format"
             }
 
