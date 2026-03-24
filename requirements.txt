@@ -13,6 +13,7 @@ google-api-python-client
 google-auth
 google-auth-httplib2
 google-auth-oauthlib
+google-generativeai
 google-ai-generativelanguage==0.6.15
 googleapis-common-protos
 grpcio
